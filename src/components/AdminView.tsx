@@ -254,14 +254,21 @@ export default function AdminView({ books, onBookClick, onEdit, onDelete, onBook
                 onClick={() => onEdit(book)}
                 className="rounded-lg px-2 py-1.5 text-[10px] font-bold text-sky-400 transition-colors hover:bg-ink-700"
               >
-                Edit
-              </button>
-              <button
-                onClick={() => handleAdminDeleteBook(book)}
-                className="rounded-lg p-1.5 text-red-400 transition-colors hover:bg-red-500/10"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
+               {user?.email === 'noonecares9650@gmail.com' && (
+  <>
+    <button
+      onClick={() => onEdit(book)}
+      className="rounded-lg px-2 py-1.5 text-[10px] font-bold text-sky-400 transition-colors hover:bg-ink-700"
+    >
+      <span className="text-[10px] font-bold">Edit</span>
+    </button>
+    <button
+      onClick={() => handleAdminDeleteBook(book)}
+      className="rounded-lg p-1.5 text-red-400 transition-colors hover:bg-red-500/10"
+    >
+      <Trash2 className="h-3.5 w-3.5" />
+    </button>
+  </>)}
             </div>
           ))}
         </div>
