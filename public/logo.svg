@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Purani Book logo</title>
+  <desc id="desc">A white open book inside a flowing black and white emblem on a black background.</desc>
+  <rect width="512" height="512" fill="#000"/>
+  <path fill="#fff" d="M256 58c30 0 59 14 79 38l119 143c31 37 29 91-5 125l-109 109c-46 46-122 46-168 0L63 364c-34-34-36-88-5-125L177 96c20-24 49-38 79-38Z"/>
+  <path fill="#000" d="M256 116c-27 0-52 10-72 28l-52 48 62 21 62-34 62 34 62-21-52-48c-20-18-45-28-72-28Z"/>
+  <path fill="#fff" d="M256 137c-25 0-47 9-66 27l-31 29 36 12 61-35 61 35 36-12-31-29c-19-18-41-27-66-27Z"/>
+  <path fill="#000" d="M134 232 180 214l76 42 76-42 46 18 18 119-64 21-76-35-76 35-64-21 18-119Z"/>
+  <path fill="#fff" d="M144 245 184 231l72 39v89l-63-28-57 18 8-104Zm224 0-40-14-72 39v89l63-28 57 18-8-104Z"/>
+  <path fill="#000" d="M155 259v70l39-12 62 28v-63l-65-36-36 13Zm202 0-36-13-65 36v63l62-28 39 12v-70Z"/>
+  <path fill="#fff" d="M118 373c42 20 88 31 138 31s96-11 138-31l-30 34c-31 35-65 51-108 51s-77-16-108-51l-30-34Z"/>
+  <path fill="#000" d="M153 386c30 13 64 20 103 20s73-7 103-20l-19 20c-25 18-52 27-84 27s-59-9-84-27l-19-20Z"/>
+</svg>

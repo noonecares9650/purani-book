@@ -1,0 +1,37 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-ink-950 text-ink-100 antialiased;
+    overscroll-behavior-y: none;
+  }
+}
+
+@layer components {
+  .input-dark {
+    @apply w-full rounded-xl border border-ink-700 bg-ink-800 px-4 py-3 text-sm text-ink-100 outline-none transition-all placeholder:text-ink-500 focus:border-brand focus:ring-2 focus:ring-brand/20;
+  }
+  .label-dark {
+    @apply mb-1.5 block text-xs font-semibold uppercase tracking-wide text-ink-400;
+  }
+  .card-dark {
+    @apply rounded-2xl border border-ink-800 bg-ink-900;
+  }
+  .btn-primary {
+    @apply flex items-center justify-center gap-2 rounded-xl bg-brand px-4 py-3 text-sm font-bold text-white transition-all hover:bg-brand-light active:scale-95 disabled:opacity-50;
+  }
+  .btn-secondary {
+    @apply flex items-center justify-center gap-2 rounded-xl border border-ink-700 bg-ink-800 px-4 py-3 text-sm font-semibold text-ink-100 transition-all hover:bg-ink-700 active:scale-95;
+  }
+}
+
+/* Hide scrollbar */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
