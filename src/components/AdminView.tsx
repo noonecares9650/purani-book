@@ -7,11 +7,10 @@ type Props = {
   books: Book[];
   onBookClick: (book: Book) => void;
   onEdit: (book: Book) => void;
-  onDelete: (book: Book) => void;
   onBooksChanged: () => void;
 };
 
-export default function AdminView({ books, onBookClick, onEdit, onDelete, onBooksChanged }: Props) {
+export default function AdminView({ books, onBookClick, onEdit, onBooksChanged }: Props) {
   const [users, setUsers] = useState<UserWithCount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -254,21 +253,15 @@ export default function AdminView({ books, onBookClick, onEdit, onDelete, onBook
                 onClick={() => onEdit(book)}
                 className="rounded-lg px-2 py-1.5 text-[10px] font-bold text-sky-400 transition-colors hover:bg-ink-700"
               >
-               {user?.email === 'noonecares9650@gmail.com' && (
-  <>
-    <button
-      onClick={() => onEdit(book)}
-      className="rounded-lg px-2 py-1.5 text-[10px] font-bold text-sky-400 transition-colors hover:bg-ink-700"
-    >
-      <span className="text-[10px] font-bold">Edit</span>
-    </button>
-    <button
-      onClick={() => handleAdminDeleteBook(book)}
-      className="rounded-lg p-1.5 text-red-400 transition-colors hover:bg-red-500/10"
-    >
-      <Trash2 className="h-3.5 w-3.5" />
-    </button>
-  </>)}
+                Edit
+              </button>
+              <button
+                onClick={() => handleAdminDeleteBook(book)}
+                className="rounded-lg p-1.5 text-red-400 transition-colors hover:bg-red-500/10"
+                aria-label={`Delete ${book.title}`}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
             </div>
           ))}
         </div>

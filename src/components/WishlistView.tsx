@@ -1,4 +1,4 @@
-import { Heart, BookOpen } from 'lucide-react';
+import { Heart } from 'lucide-react';
 import type { Book } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import type { Coords } from '@/lib/utils';

@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Search, X, BookOpen, Loader2, SlidersHorizontal } from 'lucide-react';
 import type { Book } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
-import { formatINR, calcDiscount, type Coords } from '@/lib/utils';
+import { calcDiscount, type Coords } from '@/lib/utils';
 import BookCard from './BookCard';
 
 type Props = {

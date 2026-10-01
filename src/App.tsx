@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { Loader2, LogIn } from 'lucide-react';
 import { AuthProvider, useAuth } from '@/lib/auth';
-import { supabase, type Book, type WishlistItem } from '@/lib/supabase';
+import { supabase, type Book } from '@/lib/supabase';
 import { getCurrentPosition, type Coords } from '@/lib/utils';
 import SplashScreen from '@/components/SplashScreen';
 import BottomNav, { type Tab } from '@/components/BottomNav';
@@ -19,7 +19,6 @@ function AppContent() {
   const [booksLoading, setBooksLoading] = useState(true);
   const [booksError, setBooksError] = useState<string | null>(null);
   const [wishlistIds, setWishlistIds] = useState<Set<string>>(new Set());
-  const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
   const [userCoords, setUserCoords] = useState<Coords | null>(null);
   const [addFormOpen, setAddFormOpen] = useState(false);
   const [editBook, setEditBook] = useState<Book | null>(null);
@@ -49,7 +48,6 @@ function AppContent() {
   const fetchWishlist = useCallback(async () => {
     if (!user) {
       setWishlistIds(new Set());
-      setWishlistItems([]);
       return;
     }
     const { data } = await supabase
@@ -58,7 +56,6 @@ function AppContent() {
       .eq('user_id', user.id);
 
     if (data) {
-      setWishlistItems(data);
       setWishlistIds(new Set(data.map((w) => w.book_id)));
     }
   }, [user]);
@@ -90,16 +87,12 @@ function AppContent() {
     if (wishlistIds.has(bookId)) {
       setWishlistIds((prev) => { const n = new Set(prev); n.delete(bookId); return n; });
       await supabase.from('wishlists').delete().eq('book_id', bookId).eq('user_id', user.id);
-      setWishlistItems((prev) => prev.filter((w) => w.book_id !== bookId));
     } else {
       setWishlistIds((prev) => new Set(prev).add(bookId));
-      const { data } = await supabase
+      await supabase
         .from('wishlists')
         .insert({ book_id: bookId, user_id: user.id })
         .select();
-      if (data && data[0]) {
-        setWishlistItems((prev) => [...prev, data[0]]);
-      }
     }
   }, [user, wishlistIds]);
 
@@ -114,7 +107,7 @@ function AppContent() {
       return;
     }
     setBooks((prev) => prev.filter((b) => b.id !== book.id));
-  }, [user]);
+  }, [user, isAdmin]);
 
   // Edit book
   const handleEdit = useCallback((book: Book) => {
@@ -147,7 +140,7 @@ function AppContent() {
   if (authLoading) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-ink-950">
-        <img src="/logo.svg" alt="Purani Book" className="h-20 w-20 rounded-2xl object-cover shadow-2xl shadow-brand/20" />
+        <img src="/app_logo.jpg" alt="Purani Book" className="h-20 w-20 rounded-2xl object-cover shadow-2xl shadow-brand/20" />
         <p className="mt-6 text-lg font-extrabold text-white">Purani <span className="text-brand">Book</span></p>
         <Loader2 className="mt-4 h-5 w-5 animate-spin text-brand" />
       </div>
@@ -176,7 +169,7 @@ function AppContent() {
         <header className="sticky top-0 z-30 border-b border-ink-800 bg-ink-950/80 backdrop-blur-md">
           <div className="mx-auto flex max-w-md items-center justify-between px-4 py-3">
             <div className="flex items-center gap-2.5">
-              <img src="/logo.svg" alt="Purani Book" className="h-8 w-8 rounded-lg object-cover" />
+              <img src="/app_logo.jpg" alt="Purani Book" className="h-8 w-8 rounded-lg object-cover" />
               <div>
                 <h1 className="text-sm font-bold leading-tight text-white">
                   Purani <span className="text-brand">Book</span>
@@ -229,7 +222,7 @@ function AppContent() {
       <header className="sticky top-0 z-30 border-b border-ink-800 bg-ink-950/80 backdrop-blur-md">
         <div className="mx-auto flex max-w-md items-center justify-between px-4 py-3">
           <div className="flex items-center gap-2.5">
-            <img src="/logo.svg" alt="Purani Book" className="h-8 w-8 rounded-lg object-cover" />
+            <img src="/app_logo.jpg" alt="Purani Book" className="h-8 w-8 rounded-lg object-cover" />
             <div>
               <h1 className="text-sm font-bold leading-tight text-white">
                 Purani <span className="text-brand">Book</span>
@@ -263,7 +256,6 @@ function AppContent() {
             books={books}
             onBookClick={setDetailBook}
             onEdit={handleEdit}
-            onDelete={handleDelete}
             onBooksChanged={fetchBooks}
           />
         )}

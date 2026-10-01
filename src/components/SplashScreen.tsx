@@ -50,7 +50,7 @@ export default function SplashScreen({ onBrowse }: { onBrowse: () => void }) {
       {/* Hero */}
       <div className="flex flex-1 flex-col items-center justify-center px-6 pt-16 pb-8">
         <div className="relative mb-8 animate-scale-in">
-          <img src="/logo.svg" alt="Purani Book" className="h-24 w-24 rounded-3xl object-cover shadow-2xl shadow-brand/20" />
+          <img src="/app_logo.jpg" alt="Purani Book" className="h-24 w-24 rounded-3xl object-cover shadow-2xl shadow-brand/20" />
           <div className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-ink-800 ring-2 ring-ink-950" />
         </div>
 

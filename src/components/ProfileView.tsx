@@ -1,8 +1,8 @@
-import { LogOut, BookOpen, Heart, Mail, User as UserIcon, Plus } from 'lucide-react';
+import { LogOut, BookOpen, Mail, Plus } from 'lucide-react';
 import type { Book } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import type { Coords } from '@/lib/utils';
-import { formatINR, calcDiscount } from '@/lib/utils';
+import { formatINR } from '@/lib/utils';
 import BookCard from './BookCard';
 
 type Props = {

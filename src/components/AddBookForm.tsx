@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, type ChangeEvent } from 'react';
-import { X, Upload, ImageIcon, Loader2, MapPin, Plus, Trash2, ArrowLeft } from 'lucide-react';
+import { X, Upload, ImageIcon, Loader2, MapPin, Trash2, ArrowLeft } from 'lucide-react';
 import { supabase, CONDITIONS, type Book, type BookInsert } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth';
 import { fileToDataURL, getCurrentPosition, type Coords } from '@/lib/utils';
