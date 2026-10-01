@@ -1,6 +1,6 @@
-# Beatdown Arena
+# Neon Snake
 
-Beatdown Arena is a rhythm-action fighter interface where every move is tied to the pulse of the track. The Vite + React prototype includes an arena session, live beat map, song library, fighter loadout, ranked ladder, and a rhythm-map creator modal.
+A polished arcade snake game built with React, TypeScript, and Vite. Guide a neon snake around a responsive grid, collect energy cells, complete missions, and chase your personal best.
 
 ## Run locally
 
@@ -8,6 +8,13 @@ Beatdown Arena is a rhythm-action fighter interface where every move is tied to 
 npm install
 npm run dev
 ```
+
+## Controls
+
+- Arrow keys or WASD to steer
+- Space or P to pause and resume
+- R to restart
+- On-screen arrow buttons work on touch devices
 
 ## Checks
 

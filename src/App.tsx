@@ -1,496 +1,236 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Activity,
-  ArrowUpRight,
-  AudioLines,
+  ArrowDown,
+  ArrowLeft,
+  ArrowRight,
+  ArrowUp,
   Award,
-  Bell,
-  Check,
-  ChevronRight,
   CircleHelp,
   Clock3,
-  Disc3,
-  Flame,
   Gamepad2,
-  Headphones,
   Keyboard,
-  Library,
-  ListMusic,
-  Lock,
-  Music2,
+  Medal,
   Pause,
   Play,
-  Plus,
-  Radio,
-  Settings2,
-  Shield,
+  RotateCcw,
   Sparkles,
-  Swords,
+  Target,
   Trophy,
-  Users,
-  WandSparkles,
-  X,
+  Volume2,
+  VolumeX,
   Zap,
 } from 'lucide-react';
 
-type View = 'arena' | 'songs' | 'loadout' | 'ranked';
-type HitGrade = 'PERFECT' | 'GOOD' | 'OFFBEAT';
+type Point = { x: number; y: number };
+type Direction = Point;
+type GameStatus = 'ready' | 'playing' | 'paused' | 'gameover';
+type Food = Point & { value: number; color: 'orange' | 'violet' | 'lime' };
 
-type Song = {
-  title: string;
-  artist: string;
-  genre: string;
-  bpm: number;
-  key: string;
-  energy: string;
-  duration: string;
-  progress: number;
-  color: string;
-  secondary: string;
-  tag?: string;
-  bars: number[];
+const BOARD_WIDTH = 24;
+const BOARD_HEIGHT = 18;
+const INITIAL_SNAKE: Point[] = [
+  { x: 8, y: 9 },
+  { x: 7, y: 9 },
+  { x: 6, y: 9 },
+  { x: 5, y: 9 },
+];
+
+const DIRECTIONS: Record<string, Direction> = {
+  ArrowUp: { x: 0, y: -1 },
+  ArrowDown: { x: 0, y: 1 },
+  ArrowLeft: { x: -1, y: 0 },
+  ArrowRight: { x: 1, y: 0 },
+  w: { x: 0, y: -1 },
+  s: { x: 0, y: 1 },
+  a: { x: -1, y: 0 },
+  d: { x: 1, y: 0 },
 };
 
-const songs: Song[] = [
-  {
-    title: 'Neon Genesis',
-    artist: 'KIRA//NOVA',
-    genre: 'ELECTRO PUNK',
-    bpm: 128,
-    key: 'F# MIN',
-    energy: 'OVERDRIVE',
-    duration: '03:42',
-    progress: 68,
-    color: '#ff613d',
-    secondary: '#ffb36a',
-    tag: 'FEATURED',
-    bars: [35, 58, 42, 78, 48, 66, 93, 52, 74, 44, 62, 86, 38, 69, 49, 80],
-  },
-  {
-    title: 'Glass Cathedral',
-    artist: 'MARA VANE',
-    genre: 'ALT ROCK',
-    bpm: 142,
-    key: 'C MIN',
-    energy: 'MAXIMUM',
-    duration: '04:08',
-    progress: 42,
-    color: '#a995ff',
-    secondary: '#6ee7d4',
-    tag: 'NEW',
-    bars: [64, 48, 83, 38, 72, 56, 92, 68, 42, 76, 61, 88, 46, 70, 52, 90],
-  },
-  {
-    title: 'Afterimage',
-    artist: 'LUNAR ARCHIVE',
-    genre: 'DREAM WAVE',
-    bpm: 96,
-    key: 'A MAJ',
-    energy: 'STEADY',
-    duration: '05:16',
-    progress: 24,
-    color: '#63d7d0',
-    secondary: '#8aa5ff',
-    bars: [32, 48, 36, 60, 42, 54, 68, 46, 34, 57, 44, 72, 39, 52, 31, 61],
-  },
-  {
-    title: 'Static Bloom',
-    artist: 'NOISE CTRL',
-    genre: 'BASS HOUSE',
-    bpm: 150,
-    key: 'D# MIN',
-    energy: 'UNHINGED',
-    duration: '02:58',
-    progress: 13,
-    color: '#f2ca5b',
-    secondary: '#ff7654',
-    bars: [82, 42, 96, 52, 76, 93, 44, 88, 59, 97, 46, 80, 62, 94, 51, 86],
-  },
-];
+const FOOD_COLORS: Food['color'][] = ['orange', 'violet', 'lime'];
 
-const leaderboard = [
-  { rank: '01', name: 'MINT//CTRL', score: '98,421', tier: 'CHAMPION', accent: 'lime' },
-  { rank: '02', name: 'SYNTHWALKER', score: '96,880', tier: 'DIAMOND', accent: 'violet' },
-  { rank: '03', name: 'LILAC//RUSH', score: '94,225', tier: 'DIAMOND', accent: 'cyan' },
-  { rank: '04', name: 'YOU', score: '91,740', tier: 'PLATINUM', accent: 'orange' },
-];
-
-const beatPattern = ['JAB', 'KICK', 'PARRY', 'JAB', 'SPECIAL', 'KICK', 'JAB', 'PARRY'];
-function MiniWaveform({ song, active = false }: { song: Song; active?: boolean }) {
-  return (
-    <div className={`mini-waveform ${active ? 'is-active' : ''}`} style={{ '--wave-color': song.color } as React.CSSProperties}>
-      {song.bars.slice(0, 18).map((bar, index) => (
-        <i key={`${song.title}-${index}`} style={{ height: `${Math.max(18, bar * 0.64)}%` }} />
-      ))}
-    </div>
-  );
+function samePoint(a: Point, b: Point) {
+  return a.x === b.x && a.y === b.y;
 }
 
-function Artwork({ song, large = false }: { song: Song; large?: boolean }) {
-  return (
-    <div
-      className={`song-art ${large ? 'song-art-large' : ''}`}
-      style={{ '--art-a': song.color, '--art-b': song.secondary } as React.CSSProperties}
-    >
-      <div className="art-grid" />
-      <span className="art-ring art-ring-one" />
-      <span className="art-ring art-ring-two" />
-      <span className="art-title">{song.title.split(' ')[0]}</span>
-      <span className="art-mark">///</span>
-    </div>
-  );
+function randomFood(occupied: Point[]): Food {
+  const available: Point[] = [];
+  for (let y = 0; y < BOARD_HEIGHT; y += 1) {
+    for (let x = 0; x < BOARD_WIDTH; x += 1) {
+      if (!occupied.some((point) => point.x === x && point.y === y)) available.push({ x, y });
+    }
+  }
+  const point = available[Math.floor(Math.random() * available.length)] ?? { x: 18, y: 8 };
+  const color = FOOD_COLORS[Math.floor(Math.random() * FOOD_COLORS.length)];
+  return { ...point, color, value: color === 'lime' ? 20 : color === 'violet' ? 15 : 10 };
 }
 
-function ArenaStage({
-  song,
-  playing,
-  beat,
-  streak,
-  lastHit,
-  onTogglePlaying,
-}: {
-  song: Song;
-  playing: boolean;
-  beat: number;
-  streak: number;
-  lastHit: { grade: HitGrade; id: number } | null;
-  onTogglePlaying: () => void;
-}) {
-  return (
-    <section className="arena-card">
-      <div className="arena-topline">
-        <div className="session-label">
-          <span className="live-pulse" />
-          <span>LIVE SESSION</span>
-          <b>/</b>
-          <span>RANKED REMIX</span>
-        </div>
-        <div className="arena-top-actions">
-          <span className="session-code">MATCH 04F2-A9</span>
-          <button className="icon-button subtle-button" aria-label="Arena settings"><Settings2 size={16} /></button>
-        </div>
-      </div>
-
-      <div className="arena-stage">
-        <div className="stage-orbit orbit-left" />
-        <div className="stage-orbit orbit-right" />
-        <div className="stage-scanline" />
-        <div className="stage-label stage-label-left">P1 / COMBO READY</div>
-        <div className="stage-label stage-label-right">CPU / OVERDRIVE</div>
-
-        <div className="fighter fighter-left">
-          <div className="fighter-aura" />
-          <div className="fighter-portrait portrait-orange">
-            <span className="portrait-hair" />
-            <span className="portrait-face">R</span>
-            <span className="portrait-visor" />
-          </div>
-          <div className="fighter-limb fighter-limb-back" />
-          <div className="fighter-limb fighter-limb-front" />
-          <div className="fighter-torso" />
-          <div className="fighter-copy">
-            <span>PLAYER 01</span>
-            <strong>RIOT//SABLE</strong>
-          </div>
-          <div className="health-row"><span className="health-fill orange-fill" /></div>
-        </div>
-
-        <div className="versus-mark">
-          <div className="versus-line" />
-          <span>VS</span>
-          <div className="versus-line" />
-        </div>
-
-        <div className="fighter fighter-right">
-          <div className="fighter-aura" />
-          <div className="fighter-portrait portrait-violet">
-            <span className="portrait-hair" />
-            <span className="portrait-face">V</span>
-            <span className="portrait-visor" />
-          </div>
-          <div className="fighter-limb fighter-limb-back" />
-          <div className="fighter-limb fighter-limb-front" />
-          <div className="fighter-torso" />
-          <div className="fighter-copy">
-            <span>CPU 07</span>
-            <strong>VANTA//NULL</strong>
-          </div>
-          <div className="health-row"><span className="health-fill violet-fill" /></div>
-        </div>
-
-        <div className="stage-track">
-          <div className="stage-track-meta"><span>NOW PLAYING</span><b>{song.title}</b><em>{song.bpm} BPM</em></div>
-          <div className="stage-track-progress"><span style={{ width: `${song.progress}%`, background: song.color }} /></div>
-        </div>
-
-        {lastHit && (
-          <div key={lastHit.id} className={`hit-callout hit-${lastHit.grade.toLowerCase()}`}>
-            <span>{lastHit.grade}</span>
-            <small>+{lastHit.grade === 'PERFECT' ? '420' : lastHit.grade === 'GOOD' ? '180' : '40'}</small>
-          </div>
-        )}
-
-        <button className={`play-stage-button ${playing ? 'is-playing' : ''}`} onClick={onTogglePlaying} aria-label={playing ? 'Pause match' : 'Start match'}>
-          {playing ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
-        </button>
-      </div>
-
-      <div className="arena-footer">
-        <div className="track-info">
-          <Artwork song={song} />
-          <div>
-            <span>PLAYING FROM YOUR SETLIST</span>
-            <strong>{song.title} <i>·</i> {song.artist}</strong>
-          </div>
-        </div>
-        <div className="streak-readout">
-          <span><Flame size={13} fill="currentColor" /> RHYTHM STREAK</span>
-          <strong>{String(streak).padStart(2, '0')} <small>x</small></strong>
-        </div>
-        <div className="beat-readout">
-          <span>BEAT</span>
-          <strong>{String((beat % 8) + 1).padStart(2, '0')}<small>/08</small></strong>
-        </div>
-      </div>
-    </section>
-  );
+function initialHighScore() {
+  if (typeof window === 'undefined') return 0;
+  return Number(window.localStorage.getItem('neon-snake-high-score') ?? 0);
 }
 
-function RhythmMap({ beat, playing, onAction }: { beat: number; playing: boolean; onAction: (action: string) => void }) {
-  return (
-    <section className="rhythm-panel">
-      <div className="section-kicker"><AudioLines size={14} /> RHYTHM MAP <span>•</span> 8-BEAT PHRASE</div>
-      <div className="rhythm-header">
-        <div><h2>Read the drop.</h2><p>Your next move is always one beat away.</p></div>
-        <div className="timing-legend"><span className="legend-perfect" /> PERFECT <span className="legend-good" /> GOOD</div>
-      </div>
-      <div className="beat-lane">
-        {beatPattern.map((action, index) => (
-          <button
-            key={`${action}-${index}`}
-            className={`beat-node ${index === beat % 8 ? 'is-current' : ''} ${index < beat % 8 ? 'is-passed' : ''}`}
-            onClick={() => onAction(action)}
-          >
-            <span className="beat-number">0{index + 1}</span>
-            <span className="beat-dot" />
-            <strong>{action}</strong>
-            <small>{index % 2 === 0 ? 'DOWN' : 'UP'}</small>
-          </button>
-        ))}
-      </div>
-      <div className="rhythm-controls">
-        <div className="key-hint"><Keyboard size={15} /><span>Hit the lane or use</span><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd><kbd>F</kbd></div>
-        <div className={`tempo-status ${playing ? 'tempo-live' : ''}`}><span /> {playing ? 'BEAT CLOCK RUNNING' : 'PRESS PLAY TO START'}</div>
-      </div>
-    </section>
-  );
-}
+function App() {
+  const [snake, setSnake] = useState<Point[]>(INITIAL_SNAKE);
+  const [food, setFood] = useState<Food>(() => randomFood(INITIAL_SNAKE));
+  const [direction, setDirection] = useState<Direction>(DIRECTIONS.ArrowRight);
+  const directionRef = useRef<Direction>(DIRECTIONS.ArrowRight);
+  const [status, setStatus] = useState<GameStatus>('ready');
+  const [score, setScore] = useState(0);
+  const [highScore, setHighScore] = useState(initialHighScore);
+  const [foodsEaten, setFoodsEaten] = useState(0);
+  const [soundOn, setSoundOn] = useState(true);
+  const [eatFlash, setEatFlash] = useState(false);
+  const [lastRunScore, setLastRunScore] = useState(0);
 
-function SongCard({ song, active, onSelect, onPlay }: { song: Song; active: boolean; onSelect: () => void; onPlay: () => void }) {
-  return (
-    <button className={`song-card ${active ? 'is-selected' : ''}`} onClick={onSelect}>
-      <Artwork song={song} />
-      <div className="song-card-body">
-        <div className="song-card-top"><span>{song.genre}</span>{song.tag && <b>{song.tag}</b>}</div>
-        <strong>{song.title}</strong>
-        <p>{song.artist}</p>
-        <MiniWaveform song={song} active={active} />
-        <div className="song-card-meta"><span>{song.bpm} BPM</span><span>{song.key}</span><span>{song.duration}</span><button className="mini-play" onClick={(event) => { event.stopPropagation(); onPlay(); }} aria-label={`Play ${song.title}`}>{active ? <Pause size={12} fill="currentColor" /> : <Play size={12} fill="currentColor" />}</button></div>
-      </div>
-    </button>
-  );
-}
+  const level = Math.floor(score / 50) + 1;
+  const speed = Math.max(68, 142 - (level - 1) * 11);
+  const progress = Math.min(100, (foodsEaten / 5) * 100);
 
-function RightRail({ song, playing, onSelectSong, onQueue }: { song: Song; playing: boolean; onSelectSong: (index: number) => void; onQueue: () => void }) {
-  return (
-    <aside className="right-rail">
-      <section className="side-card now-playing-card">
-        <div className="side-card-heading"><span>NOW PLAYING</span><div className="playing-bars"><i /><i /><i /><i /></div></div>
-        <Artwork song={song} large />
-        <div className="now-playing-copy"><h3>{song.title}</h3><p>{song.artist}</p></div>
-        <MiniWaveform song={song} active />
-        <div className="time-line"><span>02:31</span><div><i style={{ width: `${song.progress}%`, background: song.color }} /></div><span>{song.duration}</span></div>
-        <div className="now-playing-stats"><span><Activity size={13} /> {song.bpm} BPM</span><span><Music2 size={13} /> {song.key}</span><span><Zap size={13} /> {song.energy}</span></div>
-        <button className="queue-button" onClick={onQueue}>{playing ? <Pause size={15} fill="currentColor" /> : <Play size={15} fill="currentColor" />} {playing ? 'PAUSE FIGHT' : 'QUEUE THIS FIGHT'} <ArrowUpRight size={14} /></button>
-      </section>
+  const cells = useMemo(() => {
+    const boardCells: Point[] = [];
+    for (let y = 0; y < BOARD_HEIGHT; y += 1) {
+      for (let x = 0; x < BOARD_WIDTH; x += 1) boardCells.push({ x, y });
+    }
+    return boardCells;
+  }, []);
 
-      <section className="side-card setlist-card">
-        <div className="side-card-heading"><span>UP NEXT IN SETLIST</span><button className="text-action">EDIT <ArrowUpRight size={12} /></button></div>
-        {songs.filter((item) => item.title !== song.title).slice(0, 3).map((item) => {
-          const index = songs.findIndex((songItem) => songItem.title === item.title);
-          return <button key={item.title} className="queue-row" onClick={() => onSelectSong(index)}><Artwork song={item} /><span><strong>{item.title}</strong><small>{item.artist}</small></span><em>{item.bpm}</em><ChevronRight size={14} /></button>;
-        })}
-        <button className="add-song"><Plus size={15} /> ADD SONG TO SETLIST</button>
-      </section>
+  const startGame = useCallback(() => {
+    const firstSnake = [...INITIAL_SNAKE];
+    directionRef.current = DIRECTIONS.ArrowRight;
+    setDirection(DIRECTIONS.ArrowRight);
+    setSnake(firstSnake);
+    setFood(randomFood(firstSnake));
+    setScore(0);
+    setFoodsEaten(0);
+    setLastRunScore(0);
+    setStatus('playing');
+  }, []);
 
-      <section className="side-card rank-card">
-        <div className="side-card-heading"><span>SEASON 02 RANK</span><button className="text-action">VIEW <ArrowUpRight size={12} /></button></div>
-        <div className="rank-card-main"><div className="rank-emblem"><Trophy size={21} /></div><div><strong>PLATINUM III</strong><span>2,180 RP <i>+120 this week</i></span></div><div className="rank-position">#04</div></div>
-        <div className="rank-meter"><span style={{ width: '72%' }} /></div><div className="rank-meter-copy"><span>2,180 RP</span><span>2,400 RP TO DIAMOND</span></div>
-      </section>
-    </aside>
-  );
-}
+  const changeDirection = useCallback((next: Direction) => {
+    const current = directionRef.current;
+    const isReverse = next.x === -current.x && next.y === -current.y;
+    if (isReverse) return;
+    directionRef.current = next;
+    setDirection(next);
+    if (status === 'ready') setStatus('playing');
+  }, [status]);
 
-function ArenaView({
-  song,
-  songIndex,
-  playing,
-  beat,
-  streak,
-  lastHit,
-  setSongIndex,
-  setPlaying,
-  onAction,
-  onOpenEditor,
-}: {
-  song: Song;
-  songIndex: number;
-  playing: boolean;
-  beat: number;
-  streak: number;
-  lastHit: { grade: HitGrade; id: number } | null;
-  setSongIndex: (index: number) => void;
-  setPlaying: (value: boolean) => void;
-  onAction: (action: string) => void;
-  onOpenEditor: () => void;
-}) {
-  return (
-    <>
-      <div className="content-heading">
-        <div><div className="breadcrumb"><span>HOME</span><ChevronRight size={12} /><span className="breadcrumb-current">THE ARENA</span></div><h1>Make some noise.</h1><p>Every beat is a chance to take control.</p></div>
-        <div className="heading-actions"><button className="outline-button" onClick={onOpenEditor}><WandSparkles size={15} /> SONG EDITOR</button><button className="primary-button" onClick={() => setPlaying(!playing)}>{playing ? <Pause size={15} fill="currentColor" /> : <Play size={15} fill="currentColor" />} {playing ? 'PAUSE SESSION' : 'START SESSION'}</button></div>
-      </div>
-      <ArenaStage song={song} playing={playing} beat={beat} streak={streak} lastHit={lastHit} onTogglePlaying={() => setPlaying(!playing)} />
-      <RhythmMap beat={beat} playing={playing} onAction={onAction} />
-      <div className="lower-grid">
-        <div className="song-library-section">
-          <div className="section-header"><div><div className="section-kicker"><Disc3 size={14} /> YOUR ROTATION</div><h2>Pick your weapon.</h2></div><button className="text-action">VIEW LIBRARY <ArrowUpRight size={13} /></button></div>
-          <div className="song-grid">{songs.map((item, index) => <SongCard key={item.title} song={item} active={songIndex === index} onSelect={() => { setSongIndex(index); setPlaying(false); }} onPlay={() => { setSongIndex(index); setPlaying(true); }} />)}</div>
-        </div>
-        <section className="stat-card">
-          <div className="section-kicker"><Award size={14} /> SESSION RECORD</div><h2>Own the moment.</h2><p>Your best timing is in the top 8% of players on this track.</p>
-          <div className="stat-big"><strong>94.8%</strong><span>PERFECT RATE</span></div><div className="stat-breakdown"><span><i className="dot dot-orange" /> PERFECT <b>148</b></span><span><i className="dot dot-violet" /> GOOD <b>32</b></span><span><i className="dot dot-muted" /> MISSED <b>07</b></span></div>
-          <div className="stat-sparkline">{[42, 58, 45, 77, 61, 88, 72, 92, 76, 96, 81, 100].map((height, index) => <i key={index} style={{ height: `${height}%` }} />)}</div>
-        </section>
-      </div>
-    </>
-  );
-}
-
-function SongsView({ selectedIndex, onSelect, onPlay, onOpenEditor }: { selectedIndex: number; onSelect: (index: number) => void; onPlay: (index: number) => void; onOpenEditor: () => void }) {
-  const [filter, setFilter] = useState('ALL TRACKS');
-  const filters = ['ALL TRACKS', 'ELECTRONIC', 'ROCK', 'CHILL', 'MY MAPS'];
-  const filteredSongs = songs.filter((song) => filter === 'ALL TRACKS' || filter === 'MY MAPS' || song.genre.includes(filter === 'ELECTRONIC' ? 'ELECTRO' : filter === 'ROCK' ? 'ROCK' : 'DREAM'));
-  return (
-    <div className="page-view">
-      <div className="content-heading"><div><div className="breadcrumb"><span>LIBRARY</span><ChevronRight size={12} /><span className="breadcrumb-current">SONG SELECT</span></div><h1>Find your rhythm.</h1><p>Choose a track. The arena will build the fight around it.</p></div><button className="primary-button" onClick={onOpenEditor}><Plus size={16} /> CREATE RHYTHM MAP</button></div>
-      <div className="library-toolbar"><div className="filter-pills">{filters.map((item) => <button key={item} className={filter === item ? 'is-active' : ''} onClick={() => setFilter(item)}>{item}</button>)}</div><div className="library-sort"><ListMusic size={15} /> SORT: <strong>RECENTLY PLAYED</strong></div></div>
-      <div className="full-song-grid">{filteredSongs.map((song) => { const index = songs.indexOf(song); return <SongCard key={song.title} song={song} active={selectedIndex === index} onSelect={() => onSelect(index)} onPlay={() => onPlay(index)} />; })}<button className="import-card" onClick={onOpenEditor}><div><Plus size={22} /></div><strong>Import a song</strong><span>Build your own beat map</span><small><Lock size={11} /> Local files supported</small></button></div>
-      <div className="library-footer"><span><Headphones size={15} /> 4 TRACKS IN ROTATION</span><span><Clock3 size={14} /> LAST SYNCED 2 MIN AGO</span></div>
-    </div>
-  );
-}
-
-function LoadoutView({ onOpenEditor }: { onOpenEditor: () => void }) {
-  const [selected, setSelected] = useState(0);
-  const fighters = [
-    { name: 'RIOT//SABLE', role: 'RHYTHM STRIKER', accent: 'orange', quote: 'Hit first. Hit on time.', moves: ['Pulse Jab', 'Sync Kick', 'Aftershock'] },
-    { name: 'VANTA//NULL', role: 'COUNTER SPECIALIST', accent: 'violet', quote: 'The silence hits harder.', moves: ['Ghost Step', 'Mute Parry', 'Blackout'] },
-    { name: 'KAI//STATIC', role: 'COMBO RUNNER', accent: 'cyan', quote: 'Keep the chain alive.', moves: ['Quickstep', 'Wave Crash', 'Overclock'] },
-  ];
-  const fighter = fighters[selected];
-  return <div className="page-view"><div className="content-heading"><div><div className="breadcrumb"><span>GARAGE</span><ChevronRight size={12} /><span className="breadcrumb-current">LOADOUT</span></div><h1>Build your main.</h1><p>Every fighter brings a different way to hear the beat.</p></div><button className="primary-button" onClick={onOpenEditor}><Sparkles size={15} /> CUSTOMIZE ATTACKS</button></div><div className="loadout-layout"><section className={`fighter-loadout accent-${fighter.accent}`}><div className="loadout-grid" /><div className="loadout-copy"><span>SELECTED FIGHTER / 0{selected + 1}</span><h2>{fighter.name}</h2><p>{fighter.quote}</p><div className="fighter-role">{fighter.role}</div></div><div className="loadout-avatar"><span className="loadout-hair" /><span>{fighter.name.slice(0, 1)}</span><i /></div><div className="loadout-stats"><span><b>92</b> POWER</span><span><b>88</b> FLOW</span><span><b>76</b> GUARD</span></div></section><section className="fighter-roster"><div className="section-kicker"><Users size={14} /> ROSTER <span>03 / 12 UNLOCKED</span></div>{fighters.map((item, index) => <button key={item.name} className={`roster-row accent-${item.accent} ${selected === index ? 'is-selected' : ''}`} onClick={() => setSelected(index)}><div className="roster-avatar">{item.name.slice(0, 1)}</div><div><strong>{item.name}</strong><span>{item.role}</span></div>{selected === index ? <Check size={16} /> : <ChevronRight size={16} />}</button>)}<button className="locked-row"><Lock size={14} /><span>9 fighters locked</span><small>UNLOCK IN CAMPAIGN</small></button></section></div><div className="moves-panel"><div className="section-header"><div><div className="section-kicker"><Swords size={14} /> SIGNATURE KIT</div><h2>{fighter.name}'s rhythm attacks.</h2></div><span className="move-count">{fighter.moves.length} / 4 EQUIPPED</span></div><div className="move-grid">{fighter.moves.map((move, index) => <div className="move-card" key={move}><span className={`move-number move-${index}`}>0{index + 1}</span><div><strong>{move}</strong><p>{['On every downbeat', 'After a perfect parry', 'At 8x streak'][index]}</p></div><ArrowUpRight size={15} /></div>)}<button className="move-card add-move" onClick={onOpenEditor}><Plus size={18} /><strong>Add signature move</strong></button></div></div></div>;
-}
-
-function RankedView() {
-  return <div className="page-view"><div className="content-heading"><div><div className="breadcrumb"><span>COMPETE</span><ChevronRight size={12} /><span className="breadcrumb-current">RANKED</span></div><h1>Climb the volume.</h1><p>Season 02 ends in 12 days. There is always another beat to chase.</p></div><button className="primary-button"><Swords size={15} /> FIND A MATCH</button></div><div className="rank-hero"><div className="rank-hero-copy"><span className="rank-overline"><Radio size={13} /> SEASON 02 / RANKED LADDER</span><h2>Make your mark<br /><em>in the noise.</em></h2><p>Win rhythm duels, stack RP, and take your place on the global board.</p><button className="outline-button">VIEW SEASON REWARDS <ArrowUpRight size={14} /></button></div><div className="rank-badge-large"><div><Trophy size={44} /></div><span>PLATINUM</span><strong>III</strong><small>2,180 RP</small></div><div className="rank-hero-stat"><span>GLOBAL RANK</span><strong>#04,192</strong><i>↑ 208 this week</i></div></div><section className="leaderboard-panel"><div className="section-header"><div><div className="section-kicker"><Trophy size={14} /> GLOBAL LEADERBOARD</div><h2>The loudest players this week.</h2></div><div className="live-pill"><span /> LIVE</div></div><div className="leaderboard-list">{leaderboard.map((player) => <div className={`leaderboard-row ${player.name === 'YOU' ? 'is-you' : ''}`} key={player.rank}><span className="leaderboard-rank">{player.rank}</span><div className={`leader-avatar avatar-${player.accent}`}>{player.name.slice(0, 1)}</div><div className="leader-name"><strong>{player.name}</strong><span>{player.tier}</span></div><div className="leader-bar"><span style={{ width: `${100 - Number(player.rank) * 9}%` }} /></div><strong className="leader-score">{player.score}</strong><ChevronRight size={15} /></div>)}</div></section></div>;
-}
-
-function SongEditor({ onClose }: { onClose: () => void }) {
-  const [saved, setSaved] = useState(false);
-  return <div className="modal-backdrop" onMouseDown={onClose}><div className="editor-modal" onMouseDown={(event) => event.stopPropagation()}><div className="modal-header"><div><span className="section-kicker"><WandSparkles size={14} /> CREATOR SUITE</span><h2>Build a rhythm map.</h2></div><button className="icon-button" onClick={onClose}><X size={18} /></button></div><div className="editor-track"><Artwork song={songs[0]} /><div><strong>Drop a track to begin</strong><span>MP3, WAV, FLAC · up to 12 minutes</span><button className="outline-button"><Plus size={14} /> CHOOSE AUDIO FILE</button></div></div><div className="editor-form"><label>MAP NAME<input placeholder="Give this map a name" defaultValue="Midnight collision" /></label><label>DIFFICULTY<select defaultValue="EXPERT"><option>BEGINNER</option><option>STANDARD</option><option>EXPERT</option><option>MASTER</option></select></label></div><div className="editor-timeline"><div className="timeline-top"><span>BEAT GRID / AUTO-DETECT</span><b>128 BPM</b><button className="text-action">RE-SCAN <Activity size={13} /></button></div><div className="timeline-bars">{Array.from({ length: 48 }).map((_, index) => <i key={index} className={index % 4 === 0 ? 'strong-beat' : ''} style={{ height: `${25 + ((index * 31) % 55)}%` }} />)}</div><div className="timeline-cues"><span style={{ left: '16%' }}>JAB</span><span style={{ left: '38%' }}>KICK</span><span style={{ left: '62%' }}>PARRY</span><span style={{ left: '82%' }}>SPECIAL</span></div></div><div className="modal-footer"><span><CircleHelp size={14} /> You can fine-tune every cue after auto-detect.</span><button className="primary-button" onClick={() => { setSaved(true); window.setTimeout(onClose, 900); }}>{saved ? <><Check size={15} /> MAP SAVED</> : <>SAVE RHYTHM MAP <ArrowUpRight size={14} /></>}</button></div></div></div>;
-}
-
-export default function App() {
-  const [activeView, setActiveView] = useState<View>('arena');
-  const [songIndex, setSongIndex] = useState(0);
-  const [playing, setPlaying] = useState(false);
-  const [beat, setBeat] = useState(0);
-  const [streak, setStreak] = useState(12);
-  const [lastHit, setLastHit] = useState<{ grade: HitGrade; id: number } | null>(null);
-  const [editorOpen, setEditorOpen] = useState(false);
-  const [toast, setToast] = useState('');
-
-  const song = songs[songIndex];
+  const finishGame = useCallback(() => {
+    setLastRunScore(score);
+    setStatus('gameover');
+    setHighScore((current) => {
+      const next = Math.max(current, score);
+      window.localStorage.setItem('neon-snake-high-score', String(next));
+      return next;
+    });
+  }, [score]);
 
   useEffect(() => {
-    if (!playing) return undefined;
-    const timer = window.setInterval(() => setBeat((current) => (current + 1) % 8), 468);
-    return () => window.clearInterval(timer);
-  }, [playing]);
+    if (status !== 'playing') return undefined;
+
+    const timer = window.setTimeout(() => {
+      const head = snake[0];
+      const nextHead = { x: head.x + direction.x, y: head.y + direction.y };
+      const willEat = samePoint(nextHead, food);
+      const bodyToCheck = willEat ? snake : snake.slice(0, -1);
+      const hitWall = nextHead.x < 0 || nextHead.x >= BOARD_WIDTH || nextHead.y < 0 || nextHead.y >= BOARD_HEIGHT;
+      const hitSelf = bodyToCheck.some((part) => samePoint(part, nextHead));
+
+      if (hitWall || hitSelf) {
+        finishGame();
+        return;
+      }
+
+      const nextSnake = willEat ? [nextHead, ...snake] : [nextHead, ...snake.slice(0, -1)];
+      setSnake(nextSnake);
+
+      if (willEat) {
+        setScore((current) => current + food.value);
+        setFoodsEaten((current) => current + 1);
+        setFood(randomFood(nextSnake));
+        setEatFlash(true);
+        window.setTimeout(() => setEatFlash(false), 260);
+      }
+    }, speed);
+
+    return () => window.clearTimeout(timer);
+  }, [direction, finishGame, food, score, snake, speed, status]);
 
   useEffect(() => {
-    const handleKey = (event: KeyboardEvent) => {
-      if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement?.tagName ?? '')) return;
-      const actionByKey: Record<string, string> = { a: 'JAB', s: 'KICK', d: 'PARRY', f: 'SPECIAL' };
-      const action = actionByKey[event.key.toLowerCase()];
-      if (action) handleAction(action);
-      if (event.code === 'Space') { event.preventDefault(); setPlaying((current) => !current); }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const next = DIRECTIONS[event.key] ?? DIRECTIONS[event.key.toLowerCase()];
+      if (next) {
+        event.preventDefault();
+        changeDirection(next);
+      }
+      if (event.key === ' ' || event.key.toLowerCase() === 'p') {
+        event.preventDefault();
+        if (status === 'playing') setStatus('paused');
+        else if (status === 'paused') setStatus('playing');
+      }
+      if (event.key.toLowerCase() === 'r') startGame();
     };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  });
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [changeDirection, startGame, status]);
 
-  const handleAction = (action: string) => {
-    const expected = beatPattern[beat % 8];
-    const grade: HitGrade = action === expected ? 'PERFECT' : action === 'PARRY' ? 'GOOD' : 'OFFBEAT';
-    setLastHit({ grade, id: Date.now() });
-    setStreak((current) => grade === 'OFFBEAT' ? 0 : current + 1);
-    if (grade === 'PERFECT') setToast('PERFECT TIMING  +420');
-    else if (grade === 'GOOD') setToast('GOOD TIMING  +180');
-    else setToast('OFFBEAT  KEEP LISTENING');
-    window.setTimeout(() => setToast(''), 1200);
+  const handlePause = () => {
+    if (status === 'ready' || status === 'gameover') startGame();
+    else setStatus((current) => current === 'playing' ? 'paused' : 'playing');
   };
 
-  const selectSong = (index: number) => {
-    setSongIndex(index);
-    setBeat(0);
-    setStreak(0);
-    setLastHit(null);
-  };
-
-  const navItems: { id: View; label: string; icon: typeof Gamepad2 }[] = useMemo(() => [
-    { id: 'arena', label: 'ARENA', icon: Gamepad2 },
-    { id: 'songs', label: 'SONGS', icon: Library },
-    { id: 'loadout', label: 'LOADOUT', icon: Shield },
-    { id: 'ranked', label: 'RANKED', icon: Trophy },
-  ], []);
+  const statusCopy = {
+    ready: { eyebrow: 'READY WHEN YOU ARE', title: 'Feed the signal.', body: 'Use the arrows or WASD to steer. Eat the energy cells and do not hit the walls.', action: 'START GAME' },
+    paused: { eyebrow: 'GAME PAUSED', title: 'Take a breath.', body: 'Your snake is frozen in the grid. Jump back in when you are ready.', action: 'RESUME' },
+    gameover: { eyebrow: 'RUN TERMINATED', title: 'Signal lost.', body: `You scored ${lastRunScore} points this run. The grid is waiting for a rematch.`, action: 'PLAY AGAIN' },
+  }[status === 'playing' ? 'ready' : status];
 
   return (
-    <div className="app-shell">
-      <header className="top-nav">
-        <div className="brand-lockup" onClick={() => setActiveView('arena')} role="button" tabIndex={0}>
-          <div className="brand-symbol"><span /><span /><span /></div>
-          <div><strong>BEATDOWN</strong><span>ARENA</span></div>
+    <div className="snake-app">
+      <header className="snake-header">
+        <div className="snake-brand" onClick={startGame} role="button" tabIndex={0}>
+          <div className="snake-brand-mark"><span /><span /><span /><span /></div>
+          <div><strong>NEON</strong><b>SNAKE</b></div>
         </div>
-        <nav className="main-nav">{navItems.map(({ id, label, icon: Icon }) => <button key={id} className={activeView === id ? 'is-active' : ''} onClick={() => setActiveView(id)}><Icon size={15} />{label}{id === 'ranked' && <i className="nav-live-dot" />}</button>)}</nav>
-        <div className="top-actions"><button className="icon-button nav-icon" aria-label="Notifications"><Bell size={17} /><i /></button><div className="profile-chip"><div className="profile-avatar">M</div><div><strong>MIDNIGHT//M</strong><span>LVL 28 <i>•</i> 2,180 RP</span></div><ChevronRight size={14} /></div></div>
+        <div className="header-center"><span className="online-dot" /> ARCADE MODE <i /> GRID 24 × 18</div>
+        <div className="header-actions"><span className="header-best">BEST <strong>{String(highScore).padStart(5, '0')}</strong></span><button className="sound-button" onClick={() => setSoundOn((current) => !current)} aria-label="Toggle sound">{soundOn ? <Volume2 size={16} /> : <VolumeX size={16} />}</button></div>
       </header>
 
-      <main className="main-layout">
-        <div className="main-column">
-          {activeView === 'arena' && <ArenaView song={song} songIndex={songIndex} playing={playing} beat={beat} streak={streak} lastHit={lastHit} setSongIndex={selectSong} setPlaying={setPlaying} onAction={handleAction} onOpenEditor={() => setEditorOpen(true)} />}
-          {activeView === 'songs' && <SongsView selectedIndex={songIndex} onSelect={selectSong} onPlay={(index) => { selectSong(index); setPlaying(true); setActiveView('arena'); }} onOpenEditor={() => setEditorOpen(true)} />}
-          {activeView === 'loadout' && <LoadoutView onOpenEditor={() => setEditorOpen(true)} />}
-          {activeView === 'ranked' && <RankedView />}
-        </div>
-        <RightRail song={song} playing={playing} onSelectSong={(index) => { selectSong(index); setActiveView('arena'); }} onQueue={() => { setActiveView('arena'); setPlaying((current) => !current); }} />
-      </main>
+      <main className="snake-layout">
+        <aside className="snake-side left-side">
+          <section className="side-intro"><div className="eyebrow"><Sparkles size={13} /> HOW TO PLAY</div><h1>Grow<br /><em>fearlessly.</em></h1><p>Every cell you eat makes you longer, faster, and harder to control.</p></section>
+          <section className="info-card controls-card"><div className="card-title"><Keyboard size={14} /> CONTROLS</div><div className="control-display"><div className="arrow-cluster"><span className="key-spacer" /><button onClick={() => changeDirection(DIRECTIONS.ArrowUp)} aria-label="Move up"><ArrowUp size={14} /></button><span className="key-spacer" /><button onClick={() => changeDirection(DIRECTIONS.ArrowLeft)} aria-label="Move left"><ArrowLeft size={14} /></button><button onClick={() => changeDirection(DIRECTIONS.ArrowDown)} aria-label="Move down"><ArrowDown size={14} /></button><button onClick={() => changeDirection(DIRECTIONS.ArrowRight)} aria-label="Move right"><ArrowRight size={14} /></button></div><div className="control-labels"><span>ARROW KEYS</span><span>OR WASD</span></div></div><div className="small-control"><kbd>SPACE</kbd><span>Pause / resume</span></div><div className="small-control"><kbd>R</kbd><span>Restart run</span></div></section>
+          <section className="info-card score-card"><div className="card-title"><Trophy size={14} /> PERSONAL BEST</div><strong>{String(highScore).padStart(5, '0')}</strong><span>KEEP YOUR CHAIN ALIVE</span><div className="score-lines"><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /><i /></div></section>
+        </aside>
 
-      <footer className="app-footer"><span><Radio size={13} /> BEATDOWN ARENA / SEASON 02</span><span>ALL SYSTEMS NOMINAL <i className="status-dot" /></span><span>© 2025 RHYTHM//CORE</span></footer>
-      {toast && <div className="toast"><Zap size={15} fill="currentColor" /> {toast}</div>}
-      {editorOpen && <SongEditor onClose={() => setEditorOpen(false)} />}
+        <section className="game-column">
+          <div className="game-heading"><div><div className="game-kicker"><span className="pulse-dot" /> LIVE GRID / {status === 'playing' ? 'RUNNING' : status.toUpperCase()}</div><h2>Eat. Grow. <em>Repeat.</em></h2></div><div className="heading-level"><span>LEVEL</span><strong>{String(level).padStart(2, '0')}</strong></div></div>
+          <div className={`game-frame ${eatFlash ? 'eat-flash' : ''}`}>
+            <div className="frame-top"><span><i className="frame-dot dot-red" /><i className="frame-dot dot-yellow" /><i className="frame-dot dot-green" /></span><b>NEON_GRID.exe</b><span className="frame-coords">{String(snake[0].x).padStart(2, '0')} : {String(snake[0].y).padStart(2, '0')}</span></div>
+            <div className="game-board" style={{ '--board-columns': BOARD_WIDTH, '--board-rows': BOARD_HEIGHT } as React.CSSProperties}>
+              <div className="board-glow" />
+              {cells.map((cell) => {
+                const snakeIndex = snake.findIndex((part) => samePoint(part, cell));
+                const isFood = samePoint(food, cell);
+                const isHead = snakeIndex === 0;
+                return <div className={`board-cell ${snakeIndex >= 0 ? 'snake-cell' : ''} ${isHead ? 'snake-head' : ''} ${snakeIndex > 0 ? 'snake-body' : ''} ${isFood ? `food-cell food-${food.color}` : ''}`} key={`${cell.x}-${cell.y}`}><span /></div>;
+              })}
+            </div>
+            {status !== 'playing' && <div className={`game-overlay overlay-${status}`}><div className="overlay-icon">{status === 'gameover' ? <Target size={25} /> : <Gamepad2 size={25} />}</div><span className="overlay-eyebrow">{statusCopy.eyebrow}</span><h3>{statusCopy.title}</h3><p>{statusCopy.body}</p><button className="overlay-button" onClick={status === 'paused' ? handlePause : startGame}>{status === 'paused' ? <Play size={15} fill="currentColor" /> : <RotateCcw size={15} />} {statusCopy.action}</button></div>}
+            <div className="board-corner corner-tl" /><div className="board-corner corner-tr" /><div className="board-corner corner-bl" /><div className="board-corner corner-br" />
+          </div>
+          <div className="game-stats"><div><span>SCORE</span><strong>{String(score).padStart(5, '0')}</strong></div><div><span>CELLS EATEN</span><strong>{String(foodsEaten).padStart(2, '0')}</strong></div><div><span>PACE</span><strong>{speed}<small>MS</small></strong></div><button className="pause-button" onClick={handlePause}>{status === 'playing' ? <Pause size={15} /> : <Play size={15} fill="currentColor" />} {status === 'playing' ? 'PAUSE' : status === 'paused' ? 'RESUME' : 'START'}</button></div>
+        </section>
+
+        <aside className="snake-side right-side">
+          <section className="info-card mission-card"><div className="card-title"><Target size={14} /> CURRENT MISSION</div><h3>Consume 5 cells</h3><p>Complete the objective to unlock a new grid skin.</p><div className="mission-progress"><span style={{ width: `${progress}%` }} /></div><div className="mission-foot"><span>{foodsEaten} / 5 COMPLETE</span><em>+50 XP</em></div></section>
+          <section className="info-card live-card"><div className="card-title"><Zap size={14} /> RUN TELEMETRY</div><div className="telemetry-item"><div className="telemetry-icon orange"><Clock3 size={15} /></div><span>SESSION TIME</span><strong>{status === 'playing' ? 'LIVE' : '—'}</strong></div><div className="telemetry-item"><div className="telemetry-icon violet"><Medal size={15} /></div><span>HIGH SCORE</span><strong>{String(highScore).padStart(5, '0')}</strong></div><div className="telemetry-item"><div className="telemetry-icon lime"><Award size={15} /></div><span>RANKING</span><strong>TOP 12%</strong></div></section>
+          <section className="tip-card"><div className="tip-icon"><CircleHelp size={17} /></div><div><strong>PRO TIP</strong><p>Use the edges to make sharp turns, but never box yourself in.</p></div></section>
+        </aside>
+      </main>
+      <footer className="snake-footer"><span><i className="online-dot" /> ALL SYSTEMS NOMINAL</span><span>NEON SNAKE / ARCADE PROTOCOL 01</span><span>PRESS <b>R</b> TO RESTART</span></footer>
     </div>
   );
 }
+
+export default App;
